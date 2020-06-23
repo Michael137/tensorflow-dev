@@ -33,6 +33,8 @@ void* LoadFunction(void* dl_handle, const char* name) {
   if (func_pt == nullptr) {
     TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "Function %s is NULL", name);
   }
+  if(name != nullptr)
+	TFLITE_LOG_PROD(TFLITE_LOG_INFO, "(%s) Loading %s", __FUNCTION__, name);
   return func_pt;
 }
 

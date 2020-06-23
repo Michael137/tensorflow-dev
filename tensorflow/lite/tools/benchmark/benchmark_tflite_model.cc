@@ -539,6 +539,7 @@ BenchmarkTfLiteModel::CreateRandomTensorData(const TfLiteTensor& t,
 }
 
 TfLiteStatus BenchmarkTfLiteModel::PrepareInputData() {
+  TFLITE_LOG(INFO) << __FUNCTION__;
   CleanUp();
 
   // Note the corresponding relation between 'interpreter_inputs' and 'inputs_'

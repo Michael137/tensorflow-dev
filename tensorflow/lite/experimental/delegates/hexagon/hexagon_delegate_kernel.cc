@@ -25,6 +25,7 @@ limitations under the License.
 #include "tensorflow/lite/experimental/delegates/hexagon/utils.h"
 #include "tensorflow/lite/kernels/internal/optimized/optimized_ops.h"
 #include "tensorflow/lite/kernels/kernel_util.h"
+#include "tensorflow/lite/minimal_logging.h"
 
 namespace tflite {
 
@@ -77,6 +78,7 @@ void HexagonDelegateKernel::ReportError(TfLiteContext* context,
 
 TfLiteStatus HexagonDelegateKernel::Init(TfLiteContext* context,
                                          const TfLiteDelegateParams* params) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   hexagon_nn_ = HexagonNNImplementation();
   if (hexagon_nn_ == nullptr) {
     context->ReportError(context, "Hexagon interface not available.");
@@ -129,6 +131,7 @@ TfLiteStatus HexagonDelegateKernel::Init(TfLiteContext* context,
 
 TfLiteStatus HexagonDelegateKernel::Invoke(TfLiteContext* context,
                                            TfLiteNode* node) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   if (hexagon_nn_ == nullptr) {
     context->ReportError(context, "Hexagon interface not available.");
     return kTfLiteError;
@@ -229,6 +232,7 @@ TfLiteStatus HexagonDelegateKernel::Invoke(TfLiteContext* context,
   if (params_.print_graph_profile) {
     PrintPerformanceData(reinterpret_cast<Profiler*>(context->profiler));
   }
+  PrintLog();
   return kTfLiteOk;
 }
 
@@ -264,6 +268,7 @@ TfLiteStatus HexagonDelegateKernel::ResizeOutputTensors(TfLiteContext* context,
 
 TfLiteStatus HexagonDelegateKernel::Prepare(TfLiteContext* context,
                                             TfLiteNode* node) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   if (graph_prepared_) {
     if (!params_.enable_dynamic_batch_size)
       TF_LITE_KERNEL_LOG(context, "Calling prepare multiple times");
@@ -397,6 +402,7 @@ void HexagonDelegateKernel::PrintPerformanceData(Profiler* profiler) {
   if (profiler == nullptr) {
     return;
   }
+  // TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "Printing performance data");
   const int kMaxNodes = 2048;
   const int kMaxNameLen = 100;
   std::vector<hexagon_nn_perfinfo> perf_data(kMaxNodes);
@@ -440,8 +446,9 @@ void HexagonDelegateKernel::PrintDebuggingGraph() {
 }
 
 void HexagonDelegateKernel::Teardown() {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   auto* hexagon_nn = HexagonNNImplementation();
-  if (hexagon_nn != nullptr) {
+  if (hexagon_nn == nullptr) {
     hexagon_nn->hexagon_nn_global_teardown();
   }
 }
