@@ -134,9 +134,7 @@ Stat<int64_t> BenchmarkModel::Run(int min_num_times, float min_secs,
   int64_t max_finish_us = now_us + static_cast<int64_t>(max_secs * 1.e6f);
 
   *invoke_status = kTfLiteOk;
-  for (int run = 0; (run < min_num_times || now_us < min_finish_us) &&
-                    now_us <= max_finish_us;
-       run++) {
+  for (int run = 0; run < min_num_times; run++) {
     ResetInputsAndOutputs();
     listeners_.OnSingleRunStart(run_type);
     int64_t start_us = profiling::time::NowMicros();
@@ -187,7 +185,10 @@ TfLiteStatus BenchmarkModel::Run() {
   TFLITE_LOG(INFO) << "Initialized session in " << startup_latency_us / 1e3
                    << "ms.";
 
+  int64_t prep_start_us = profiling::time::NowMicros();
   TF_LITE_ENSURE_STATUS(PrepareInputData());
+  int64_t prep_end_us = profiling::time::NowMicros();
+  TFLITE_LOG(INFO) << "PRE-PROCESSING: " << (prep_end_us - prep_start_us);
 
   TfLiteStatus status = kTfLiteOk;
   uint64_t input_bytes = ComputeInputBytes();

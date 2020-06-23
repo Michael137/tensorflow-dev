@@ -1034,6 +1034,7 @@ class NNAPIOpBuilder {
   // then the existing one is returned.
   TfLiteStatus AddTensor(int tensor_index, bool hybrid_op,
                          std::vector<uint32_t>* indices, int tensor_flags = 0) {
+    TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
     const bool scalar_as_tensor =
         tensor_flags & NN_TENSOR_FLAG_SCALAR_AS_TENSOR;
     const bool need_int8_conversion =
@@ -3085,6 +3086,7 @@ TfLiteStatus NNAPIDelegateKernel::Map(
 TfLiteStatus NNAPIDelegateKernel::Init(TfLiteContext* context,
                                        const TfLiteDelegateParams* params,
                                        int* nnapi_errno) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   for (auto node_index : TfLiteIntArrayView(params->nodes_to_replace)) {
     nodes_.push_back(node_index);
   }
@@ -3155,6 +3157,7 @@ TfLiteStatus NNAPIDelegateKernel::Init(TfLiteContext* context,
 
 TfLiteStatus NNAPIDelegateKernel::Prepare(TfLiteContext* context,
                                           TfLiteNode* node, int* nnapi_errno) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   if (!initialised_) {
     return kTfLiteError;
   }
@@ -3266,11 +3269,18 @@ TfLiteStatus NNAPIDelegateKernel::GetOperationsSupportedByTargetNnApiDevices(
 
 TfLiteStatus NNAPIDelegateKernel::Invoke(TfLiteContext* context,
                                          TfLiteNode* node, int* nnapi_errno) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   ANeuralNetworksExecution* execution = nullptr;
   RETURN_TFLITE_ERROR_IF_NN_ERROR(context,
                                   nnapi_->ANeuralNetworksExecution_create(
                                       nn_compilation_.get(), &execution),
                                   "creating NNAPI execution", nnapi_errno);
+
+  RETURN_TFLITE_ERROR_IF_NN_ERROR(
+      context,
+      nnapi_->ANeuralNetworksExecution_setMeasureTiming(execution, true),
+      "setMeasureTiming", nnapi_errno);
+
   std::unique_ptr<ANeuralNetworksExecution, NNFreeExecution>
       execution_unique_ptr(execution, NNFreeExecution(nnapi_));
 
@@ -3413,6 +3423,7 @@ TfLiteStatus NNAPIDelegateKernel::Invoke(TfLiteContext* context,
   }
   // Invoke ANN in blocking fashion.
   if (nnapi_->android_sdk_version < kMinSdkVersionForNNAPI12) {
+    TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "startCompute");
     ANeuralNetworksEvent* event = nullptr;
     RETURN_TFLITE_ERROR_IF_NN_ERROR(
         context,
@@ -3424,11 +3435,30 @@ TfLiteStatus NNAPIDelegateKernel::Invoke(TfLiteContext* context,
                                     "waiting for async computation completion",
                                     nnapi_errno);
   } else {
+    TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "compute");
     // Use synchronous execution for NNAPI 1.2+.
     RETURN_TFLITE_ERROR_IF_NN_ERROR(
         context, nnapi_->ANeuralNetworksExecution_compute(execution),
         "running computation", nnapi_errno);
   }
+
+  uint64_t driver_dur;
+  uint64_t hw_dur;
+  RETURN_TFLITE_ERROR_IF_NN_ERROR(
+      context,
+      nnapi_->ANeuralNetworksExecution_getDuration(
+          execution, ANEURALNETWORKS_DURATION_IN_DRIVER, &driver_dur),
+      "getDuration driver", nnapi_errno);
+  RETURN_TFLITE_ERROR_IF_NN_ERROR(
+      context,
+      nnapi_->ANeuralNetworksExecution_getDuration(
+          execution, ANEURALNETWORKS_DURATION_ON_HARDWARE, &hw_dur),
+      "getDuration hardware", nnapi_errno);
+
+  TFLITE_LOG_PROD(
+      tflite::TFLITE_LOG_INFO,
+      "ANeuralNetworksExecution_getDuration: (hardware) %lu (driver) %lu",
+      hw_dur, driver_dur);
 
   // copy results from shared memory to the destination.
   output_offset = 0;
@@ -3473,6 +3503,7 @@ TfLiteStatus NNAPIDelegateKernel::Invoke(TfLiteContext* context,
 void NNAPIDelegateKernel::AddDequantizeOperatorsWhereNeeded(
     const TfLiteContext* context, int builtin_code, const TfLiteNode* node,
     NNAPIOpBuilder* builder, int* nnapi_errno) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   // Depending on the operator and the input data format, Dequantize
   // operators may need to be added. For example when the input is
   // floating-point but weights are quantized then the weights will first be
@@ -3526,6 +3557,7 @@ void NNAPIDelegateKernel::AddDequantizeOperatorsWhereNeeded(
 
 TfLiteStatus NNAPIDelegateKernel::AddOpsAndTensors(TfLiteContext* context,
                                                    int* nnapi_errno) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   DequantizeMapping dequantize_mapping;
   // The operand builder allows creating a single op. It is created outside
   // the for loop to avoid reallocating the vectors.
@@ -3838,6 +3870,7 @@ TfLiteStatus NNAPIDelegateKernel::AddOpsAndTensors(TfLiteContext* context,
 TfLiteStatus NNAPIDelegateKernel::BuildGraph(
     TfLiteContext* context, const TfLiteIntArray* input_tensors,
     const TfLiteIntArray* output_tensors, int* nnapi_errno) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   // Build the ops and tensors.
   TF_LITE_ENSURE_STATUS(AddOpsAndTensors(context, nnapi_errno));
   // Map input and output tensor indices to ANN
@@ -3929,6 +3962,7 @@ TfLiteStatus NNAPIDelegateKernel::BuildGraph(
 using ::tflite::delegate::nnapi::NNAPIDelegateKernel;
 
 StatefulNnApiDelegate::Data::~Data() {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   std::for_each(std::begin(delegate_state_cache),
                 std::end(delegate_state_cache),
                 [](const std::pair<int, NNAPIDelegateKernel*>& entry) {
@@ -3939,6 +3973,7 @@ StatefulNnApiDelegate::Data::~Data() {
 void StatefulNnApiDelegate::Data::CacheDelegateKernel(
     const TfLiteDelegateParams* delegate_params,
     NNAPIDelegateKernel* delegate_state) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   const int cache_key = delegate_params->nodes_to_replace->data[0];
   delegate_state_cache.emplace(cache_key, delegate_state);
 }
@@ -3946,6 +3981,7 @@ void StatefulNnApiDelegate::Data::CacheDelegateKernel(
 absl::optional<NNAPIDelegateKernel*>
 StatefulNnApiDelegate::Data::GetCachedDelegateKernel(
     const TfLiteDelegateParams* delegate_params) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   const int cache_key = delegate_params->nodes_to_replace->data[0];
   const auto cached_state = delegate_state_cache.find(cache_key);
   if (cached_state != std::end(delegate_state_cache)) {
@@ -4181,6 +4217,7 @@ TfLiteStatus StatefulNnApiDelegate::LimitDelegatedPartitions(
 
 TfLiteStatus StatefulNnApiDelegate::DoPrepare(TfLiteContext* context,
                                               TfLiteDelegate* delegate) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   auto* delegate_data = static_cast<Data*>(delegate->data_);
   int* nnapi_errno = &(delegate_data->nnapi_errno);
   const NnApi* nnapi = delegate_data->nnapi;

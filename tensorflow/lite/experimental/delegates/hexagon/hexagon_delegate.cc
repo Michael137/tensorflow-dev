@@ -34,6 +34,7 @@ constexpr int kMaxMaxHexagonGraphs = 16;
 constexpr int kMinNodesPerHexagonGraph = 2;
 
 TfLiteRegistration GetHexagonKernelRegistration() {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   // This is the registration for the Delegate Node that gets added to
   // the TFLite graph instead of the subGraph it replaces it.
   // It is treated as a an OP node. But in our case
@@ -87,6 +88,7 @@ class HexagonDelegate : public TfLiteDelegate {
   explicit HexagonDelegate(const TfLiteHexagonDelegateOptions* params)
       : params_(params != nullptr ? *params
                                   : TfLiteHexagonDelegateOptions({0})) {
+    TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
     if (params_.max_delegated_partitions <= 0) {
       params_.max_delegated_partitions = kMaxHexagonGraphs;
     } else if (params_.max_delegated_partitions > kMaxMaxHexagonGraphs) {
@@ -110,9 +112,15 @@ class HexagonDelegate : public TfLiteDelegate {
     }
     if (hexagon_nn->hexagon_nn_version != nullptr &&
         hexagon_nn->hexagon_nn_hexagon_interface_version) {
-      int hexagon_nn_version = -1;
       int hexagon_interface_version =
           hexagon_nn->hexagon_nn_hexagon_interface_version();
+
+      int hexagon_nn_version = -1;
+      TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO,
+                      "hexagon_nn_version: %d\nhexagon_interface_version: %d\n",
+                      hexagon_nn->hexagon_nn_version(&hexagon_nn_version),
+                      hexagon_interface_version);
+
       if (hexagon_nn->hexagon_nn_version(&hexagon_nn_version) != 0) {
         TFLITE_LOG_PROD(tflite::TFLITE_LOG_WARNING,
                         "Failed to fetch Hexagon NN version. This might be "
@@ -146,6 +154,7 @@ class HexagonDelegate : public TfLiteDelegate {
 };
 
 TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   delegates::IsNodeSupportedFn node_supported_fn =
       [=](TfLiteContext* context, TfLiteNode* node,
           TfLiteRegistration* registration,
@@ -193,6 +202,7 @@ TfLiteStatus DelegatePrepare(TfLiteContext* context, TfLiteDelegate* delegate) {
 }
 
 TfLiteDelegate* CreateDelegate(const TfLiteHexagonDelegateOptions* params) {
+  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   TfLiteDelegate* delegate = new HexagonDelegate(params);
   if (!static_cast<HexagonDelegate*>(delegate)->VerifyDelegate()) {
     delete delegate;
