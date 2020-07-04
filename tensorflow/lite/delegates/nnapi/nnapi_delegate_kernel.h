@@ -22,6 +22,7 @@ limitations under the License.
 #include "tensorflow/lite/allocation.h"
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/delegates/nnapi/nnapi_delegate.h"
+#include "tensorflow/lite/minimal_logging.h"
 #include "tensorflow/lite/nnapi/nnapi_implementation.h"
 
 namespace tflite {
@@ -168,7 +169,6 @@ class NNMemory {
   ANeuralNetworksMemory* nn_memory_handle_ = nullptr;
 };
 
-
 enum class NNAPIValidationFailureType : int {
   // The operator is not supported by either NNAPI or the NNAPI Delegate.
   kUnsupportedOperator = 0,
@@ -226,7 +226,6 @@ enum class NNAPIValidationFailureType : int {
   kUnsupportedQuantizationParameters = 15,
 };
 
-
 struct NNAPIValidationFailure {
   NNAPIValidationFailureType type;
   std::string message;
@@ -245,9 +244,32 @@ class NNAPIDelegateKernel {
         nn_compilation_(nullptr, NNFreeCompilation(nnapi_)) {}
   NNAPIDelegateKernel() : NNAPIDelegateKernel(NnApiImplementation()) {}
   ~NNAPIDelegateKernel() {
+    if (timings_.size() > 0) {
+      auto times = get_driver_time();
+      TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO,
+                      "TIME NNAPI_DELEGATE: (driver) %f (delegate) %f",
+                      times.first, times.second);
+    }
     for (auto content : allocation_memory_mapping_) {
       nnapi_->ANeuralNetworksMemory_free(content.second);
     }
+  }
+
+  std::pair<double, double> get_driver_time() {
+    auto in_driver =
+        std::accumulate(timings_.cbegin(), timings_.cend(), 0.0,
+                        [](double lhs, std::pair<double, double> const& rhs) {
+                          return lhs + rhs.first;
+                        }) /
+        timings_.size();
+    auto in_nnapi =
+        std::accumulate(timings_.cbegin(), timings_.cend(), 0.0,
+                        [](double lhs, std::pair<double, double> const& rhs) {
+                          return lhs + rhs.second;
+                        }) /
+        timings_.size();
+
+    return {in_driver, in_nnapi};
   }
 
   // Translate a node into its operands
@@ -339,6 +361,8 @@ class NNAPIDelegateKernel {
   std::vector<uint8_t> nn_compilation_cache_token_;
 
   std::vector<int> nnapi_to_tflite_op_mapping_;
+
+  std::vector<std::pair<double, double>> timings_;
 
   void AddDequantizeOperatorsWhereNeeded(const TfLiteContext* context,
                                          int builtin_code,

@@ -33,6 +33,8 @@ class NnapiDelegateProvider : public DelegateProvider {
                              BenchmarkParam::Create<std::string>(""));
     default_params_.AddParam("disable_nnapi_cpu",
                              BenchmarkParam::Create<bool>(false));
+    default_params_.AddParam("time_driver",
+                             BenchmarkParam::Create<bool>(false));
   }
 
   std::vector<Flag> CreateFlags(BenchmarkParams* params) const final;
@@ -58,7 +60,9 @@ std::vector<Flag> NnapiDelegateProvider::CreateFlags(
           "nnapi_accelerator_name", params,
           "the name of the nnapi accelerator to use (requires Android Q+)"),
       CreateFlag<bool>("disable_nnapi_cpu", params,
-                       "Disable the NNAPI CPU device")};
+                       "Disable the NNAPI CPU device"),
+      CreateFlag<bool>("time_driver", params,
+                       "Measure time spent in NNAPI driver")};
 
   return flags;
 }
@@ -85,6 +89,10 @@ void NnapiDelegateProvider::LogParams(const BenchmarkParams& params) const {
       TFLITE_LOG(INFO) << "disable_nnapi_cpu: ["
                        << params.Get<bool>("disable_nnapi_cpu") << "]";
     }
+    if (params.Get<bool>("time_driver")) {
+      TFLITE_LOG(INFO) << "time_driver: ["
+                       << params.Get<bool>("time_driver") << "]";
+    }
   }
 #endif
 }
@@ -101,6 +109,9 @@ TfLiteDelegatePtr NnapiDelegateProvider::CreateTfLiteDelegate(
     } else if (params.Get<bool>("disable_nnapi_cpu")) {
       options.disallow_nnapi_cpu = true;
     }
+	if(params.Get<bool>("time_driver"))
+		options.time_driver = true;
+
     std::string string_execution_preference =
         params.Get<std::string>("nnapi_execution_preference");
     // Only set execution preference if user explicitly passes one. Otherwise,
