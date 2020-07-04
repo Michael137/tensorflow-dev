@@ -131,7 +131,7 @@ TfLiteStatus HexagonDelegateKernel::Init(TfLiteContext* context,
 
 TfLiteStatus HexagonDelegateKernel::Invoke(TfLiteContext* context,
                                            TfLiteNode* node) {
-  TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
+  // TFLITE_LOG_PROD(tflite::TFLITE_LOG_INFO, "%s", __FUNCTION__);
   if (hexagon_nn_ == nullptr) {
     context->ReportError(context, "Hexagon interface not available.");
     return kTfLiteError;

@@ -43,6 +43,12 @@ extern "C" {
 
 typedef enum TfLiteStatus { kTfLiteOk = 0, kTfLiteError = 1 } TfLiteStatus;
 
+typedef struct TfLiteTiming {
+	TfLiteStatus status;
+	float driver_t;  // From getDuration API
+	float compute_t; // Time spent in invoke
+} TfLiteTiming;
+
 // The list of external context types known to TF Lite. This list exists solely
 // to avoid conflicts and to ensure ops can share the external contexts they
 // need. Access to the external contexts is controlled by one of the
